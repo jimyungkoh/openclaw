@@ -32,6 +32,7 @@ import {
   modelKey,
   resolveDefaultModelForAgent,
   resolveModelRefFromString,
+  resolveThinkingDefault,
 } from "../model-selection.js";
 import type { AnyAgentTool } from "./common.js";
 import { readStringParam } from "./common.js";
@@ -296,6 +297,16 @@ export function createSessionStatusTool(opts?: {
 
       const agentDir = resolveAgentDir(cfg, agentId);
       const providerForCard = resolved.entry.providerOverride?.trim() || configured.provider;
+      const modelForCard = resolved.entry.modelOverride?.trim() || configured.model;
+      const resolvedThink =
+        typeof resolved.entry.thinkingLevel === "string"
+          ? resolved.entry.thinkingLevel
+          : resolveThinkingDefault({
+              cfg,
+              provider: providerForCard,
+              model: modelForCard,
+              catalog: await loadModelCatalog({ config: cfg }),
+            });
       const usageProvider = resolveUsageProviderId(providerForCard);
       let usageLine: string | undefined;
       if (usageProvider) {
@@ -365,6 +376,7 @@ export function createSessionStatusTool(opts?: {
         sessionKey: resolved.key,
         sessionStorePath: storePath,
         groupActivation,
+        resolvedThink,
         modelAuth: resolveModelAuthLabel({
           provider: providerForCard,
           cfg,

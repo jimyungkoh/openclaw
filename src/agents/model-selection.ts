@@ -1,3 +1,4 @@
+import { normalizeThinkLevel } from "../auto-reply/thinking.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveAgentModelPrimaryValue, toAgentModelListLike } from "../config/model-input.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
@@ -558,6 +559,38 @@ export function resolveThinkingDefault(params: {
   model: string;
   catalog?: ModelCatalogEntry[];
 }): ThinkLevel {
+  const modelDefaults = params.cfg.agents?.defaults?.models;
+  if (modelDefaults) {
+    const direct = modelDefaults[modelKey(params.provider, params.model)];
+    const directThinking = normalizeThinkLevel(
+      typeof direct?.params?.thinking === "string" ? direct.params.thinking : undefined,
+    );
+    if (directThinking) {
+      return directThinking;
+    }
+
+    const targetProvider = params.provider.toLowerCase();
+    const targetModel = params.model.toLowerCase();
+    for (const [rawRef, entry] of Object.entries(modelDefaults)) {
+      const parsed = parseModelRef(rawRef, DEFAULT_PROVIDER);
+      if (!parsed) {
+        continue;
+      }
+      if (
+        parsed.provider.toLowerCase() !== targetProvider ||
+        parsed.model.toLowerCase() !== targetModel
+      ) {
+        continue;
+      }
+      const configuredThinking = normalizeThinkLevel(
+        typeof entry?.params?.thinking === "string" ? entry.params.thinking : undefined,
+      );
+      if (configuredThinking) {
+        return configuredThinking;
+      }
+    }
+  }
+
   const configured = params.cfg.agents?.defaults?.thinkingDefault;
   if (configured) {
     return configured;
