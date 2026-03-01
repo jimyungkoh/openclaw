@@ -647,6 +647,28 @@ describe("agentCommand", () => {
     });
   });
 
+  it("prefers per-model params.thinking over global thinkingDefault", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      mockConfig(home, store, {
+        thinkingDefault: "high",
+        models: {
+          "anthropic/claude-opus-4-5": {
+            params: {
+              thinking: "low",
+            },
+          },
+        },
+      });
+      vi.mocked(loadModelCatalog).mockResolvedValueOnce([]);
+
+      await agentCommand({ message: "hi", to: "+1555" }, runtime);
+
+      const callArgs = vi.mocked(runEmbeddedPiAgent).mock.calls.at(-1)?.[0];
+      expect(callArgs?.thinkLevel).toBe("low");
+    });
+  });
+
   it("prints JSON payload when requested", async () => {
     await withTempHome(async (home) => {
       vi.mocked(runEmbeddedPiAgent).mockResolvedValue({

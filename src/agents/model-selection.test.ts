@@ -11,6 +11,7 @@ import {
   resolveAllowedModelRef,
   resolveConfiguredModelRef,
   resolveModelRefFromString,
+  resolveThinkingDefault,
 } from "./model-selection.js";
 
 describe("model-selection", () => {
@@ -270,6 +271,85 @@ describe("model-selection", () => {
       expect(result.allowedCatalog).toEqual([
         { provider: "anthropic", id: "claude-sonnet-4-6", name: "claude-sonnet-4-6" },
       ]);
+    });
+  });
+
+  describe("resolveThinkingDefault", () => {
+    it("prefers per-model params.thinking over global thinkingDefault", () => {
+      const cfg: OpenClawConfig = {
+        agents: {
+          defaults: {
+            thinkingDefault: "high",
+            models: {
+              "openai/gpt-4.1-mini": {
+                params: {
+                  thinking: "low",
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "openai",
+          model: "gpt-4.1-mini",
+          catalog: [],
+        }),
+      ).toBe("low");
+    });
+
+    it("falls back to global thinkingDefault when model params.thinking is invalid", () => {
+      const cfg: OpenClawConfig = {
+        agents: {
+          defaults: {
+            thinkingDefault: "medium",
+            models: {
+              "openai/gpt-4.1-mini": {
+                params: {
+                  thinking: "invalid",
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "openai",
+          model: "gpt-4.1-mini",
+          catalog: [],
+        }),
+      ).toBe("medium");
+    });
+
+    it("matches provider aliases while resolving per-model params.thinking", () => {
+      const cfg: OpenClawConfig = {
+        agents: {
+          defaults: {
+            models: {
+              "z.ai/glm-4.5": {
+                params: {
+                  thinking: "on",
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "zai",
+          model: "glm-4.5",
+          catalog: [],
+        }),
+      ).toBe("low");
     });
   });
 
